@@ -1,1 +1,14 @@
+:root {
+  --bg-color: #B3C3D1;
+  --text-primary: #6886A8;
+}
 
+body {
+  background: var(--bg-bolor);
+  color: var(--text-primary);
+
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
