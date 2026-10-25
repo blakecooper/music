@@ -99,6 +99,25 @@ function renderAlbum(albumData) {
   });
 }
 
+// Configure Media Session API for OS media players (e.g., iPhone Home/Lock screen)
+function updateMediaSession(track, albumData) {
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.name,
+      artist: "Blake Cooper",
+      album: albumData.name,
+      artwork: [
+        { src: document.getElementById('album-cover').src, sizes: '512x512', type: 'image/png' }
+      ]
+    });
+
+    navigator.mediaSession.setActionHandler('play', () => { audioL.play(); });
+    navigator.mediaSession.setActionHandler('pause', () => { audioL.pause(); });
+    navigator.mediaSession.setActionHandler('previoustrack', () => { prevBtn.click(); });
+    navigator.mediaSession.setActionHandler('nexttrack', () => { nextBtn.click(); });
+  }
+}
+
 // Playback State Toggle
 function togglePlayTrack(track, index, rowEl) {
   if (currentTrackIndex === index) {
@@ -124,9 +143,16 @@ function togglePlayTrack(track, index, rowEl) {
   currentActiveRow = rowEl;
   rowEl.classList.add('active');
 
+  // Auto-scroll track list to show currently playing track
+  rowEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
   audioL.src = track.src;
   audioL.play();
   updatePlayStateUI(rowEl, true);
+
+  if (typeof music !== 'undefined' && music.length > 0) {
+    updateMediaSession(track, music[0]);
+  }
 }
 
 // Update Play/Pause UI across track row and main control bar
@@ -169,7 +195,7 @@ audioL.addEventListener('timeupdate', () => {
   timeRemaining.textContent = formatTime(remaining, true);
 });
 
-// Automatic next track progression on end
+// Automatic progression on track end (stops at the end of the album)
 audioL.addEventListener('ended', () => {
   if (currentTrackIndex !== null && typeof music !== 'undefined') {
     const nextIndex = currentTrackIndex + 1;
@@ -179,6 +205,7 @@ audioL.addEventListener('ended', () => {
       const nextRow = tracklistEl.children[nextIndex];
       togglePlayTrack(trackList[nextIndex], nextIndex, nextRow);
     } else {
+      // Reached the end of the album: stop playback and reset
       if (currentActiveRow) {
         updatePlayStateUI(currentActiveRow, false);
         resetRowProgress(currentActiveRow);
@@ -220,13 +247,26 @@ prevBtn.addEventListener('click', () => {
   togglePlayTrack(trackList[targetIndex], targetIndex, targetRow);
 });
 
-// Next Track Button Control
+// Next Track Button Control (stops working / halts playback on the last song)
 nextBtn.addEventListener('click', () => {
   if (typeof music === 'undefined' || music.length === 0) return;
   const trackList = music[0].tracklist;
+  if (currentTrackIndex === null) return;
   
-  let targetIndex = currentTrackIndex !== null ? currentTrackIndex + 1 : 0;
-  if (targetIndex >= trackList.length) targetIndex = 0;
+  const targetIndex = currentTrackIndex + 1;
+  if (targetIndex >= trackList.length) {
+    // On the last song, next button stops playback
+    audioL.pause();
+    audioL.currentTime = 0;
+    if (currentActiveRow) {
+      updatePlayStateUI(currentActiveRow, false);
+      resetRowProgress(currentActiveRow);
+    }
+    currentTrackIndex = null;
+    currentActiveRow = null;
+    mainPlayIcon.innerHTML = '&#9654;';
+    return;
+  }
 
   const targetRow = tracklistEl.children[targetIndex];
   togglePlayTrack(trackList[targetIndex], targetIndex, targetRow);
