@@ -58,6 +58,18 @@ body {
   margin-bottom: 1rem;
 }
 
+.album-download-link {
+  color: inherit;
+  text-decoration: none;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+
+.album-download-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
 /* Album Controls Styling */
 .album-controls {
   display: flex;

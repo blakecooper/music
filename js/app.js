@@ -40,14 +40,24 @@ function forceDownload(url, filename) {
     })
     .catch(err => {
       console.error('Download failed:', err);
-      // Removed window.open fallback so it never opens a new tab
     });
 }
 
 // Dynamic Tracklist Renderer
 function renderAlbum(albumData) {
   albumTitleEl.textContent = albumData.name;
-  albumYearEl.textContent = albumData.year;
+  
+  // Render year and album ZIP download link
+  const zipFilename = `${albumData.name}.zip`;
+  const zipPath = `assets/${zipFilename}`;
+  albumYearEl.innerHTML = `${albumData.year} &bull; <a href="#" class="album-download-link">Download</a>`;
+
+  const albumDownloadLink = albumYearEl.querySelector('.album-download-link');
+  albumDownloadLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    forceDownload(zipPath, zipFilename);
+  });
+
   tracklistEl.innerHTML = '';
 
   albumData.tracklist.forEach((track, index) => {
@@ -63,7 +73,7 @@ function renderAlbum(albumData) {
         <div class="track-info">
           <span class="track-title-num">${index + 1}. ${track.name}</span>
           <span class="track-length">${track.length}</span>
-          <a class="download-link" title="Download track">&#8407; Download</a>
+          <a class="download-link" title="Download track"> Download</a>
         </div>
       </div>
       <div class="progress-wrapper">
@@ -261,7 +271,6 @@ nextBtn.addEventListener('click', () => {
   
   const targetIndex = currentTrackIndex + 1;
   if (targetIndex >= trackList.length) {
-    // On the last song, next button stops playback
     audioL.pause();
     audioL.currentTime = 0;
     if (currentActiveRow) {
