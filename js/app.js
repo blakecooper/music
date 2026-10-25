@@ -24,7 +24,10 @@ function formatTime(seconds, isNegative = false) {
 // Utility: Force file download using Blob fetch
 function forceDownload(url, filename) {
   fetch(url)
-    .then(res => res.blob())
+    .then(res => {
+      if (!res.ok) throw new Error('Network response was not ok');
+      return res.blob();
+    })
     .then(blob => {
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -35,7 +38,10 @@ function forceDownload(url, filename) {
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
     })
-    .catch(() => window.open(url, '_blank'));
+    .catch(err => {
+      console.error('Download failed:', err);
+      // Removed window.open fallback so it never opens a new tab
+    });
 }
 
 // Dynamic Tracklist Renderer
