@@ -1,1 +1,240 @@
+// DOM References
+const albumTitleEl = document.getElementById('album-title');
+const albumYearEl = document.getElementById('album-year');
+const tracklistEl = document.getElementById('tracklist');
+const audioL = document.getElementById('audio');
 
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
+const mainPlayBtn = document.getElementById('main-play-btn');
+const mainPlayIcon = document.getElementById('main-play-icon');
+
+let currentActiveRow = null;
+let currentTrackIndex = null;
+
+// Utility: Format seconds into m:ss or -m:ss
+function formatTime(seconds, isNegative = false) {
+  if (isNaN(seconds) || seconds < 0) return isNegative ? "-0:00" : "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  const formattedSecs = secs < 10 ? `0${secs}` : secs;
+  return `${isNegative ? '-' : ''}${mins}:${formattedSecs}`;
+}
+
+// Utility: Force file download using Blob fetch
+function forceDownload(url, filename) {
+  fetch(url)
+    .then(res => res.blob())
+    .then(blob => {
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    })
+    .catch(() => window.open(url, '_blank'));
+}
+
+// Dynamic Tracklist Renderer
+function renderAlbum(albumData) {
+  albumTitleEl.textContent = albumData.name;
+  albumYearEl.textContent = albumData.year;
+  tracklistEl.innerHTML = '';
+
+  albumData.tracklist.forEach((track, index) => {
+    const li = document.createElement('li');
+    li.className = 'track-row';
+    li.dataset.index = index;
+
+    li.innerHTML = `
+      <div class="track-main">
+        <button class="play-btn" aria-label="Play ${track.name}">
+          <span class="play-icon">&#9654;</span>
+        </button>
+        <div class="track-info">
+          <span class="track-title-num">${index + 1}. ${track.name}</span>
+          <span class="track-length">${track.length}</span>
+          <a class="download-link" title="Download track">&#8407; Download</a>
+        </div>
+      </div>
+      <div class="progress-wrapper">
+        <div class="progress-container">
+          <div class="progress-bar"></div>
+        </div>
+        <div class="time-display">
+          <span class="time-current">0:00</span>
+          <span class="time-remaining">-${track.length}</span>
+        </div>
+      </div>
+    `;
+
+    // Event Listener: Play/Pause Button
+    const playBtn = li.querySelector('.play-btn');
+    playBtn.addEventListener('click', () => togglePlayTrack(track, index, li));
+
+    // Event Listener: Download Link
+    const downloadLink = li.querySelector('.download-link');
+    downloadLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const safeName = `${track.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.mp3`;
+      forceDownload(track.src, safeName);
+    });
+
+    // Event Listener: Clickable Progress Bar for Seeking
+    const progressContainer = li.querySelector('.progress-container');
+    progressContainer.addEventListener('click', (e) => {
+      if (currentTrackIndex === index && audioL.duration) {
+        const rect = progressContainer.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const percentage = clickX / rect.width;
+        audioL.currentTime = percentage * audioL.duration;
+      }
+    });
+
+    tracklistEl.appendChild(li);
+  });
+}
+
+// Playback State Toggle
+function togglePlayTrack(track, index, rowEl) {
+  if (currentTrackIndex === index) {
+    if (audioL.paused) {
+      audioL.play();
+      updatePlayStateUI(rowEl, true);
+    } else {
+      audioL.pause();
+      updatePlayStateUI(rowEl, false);
+    }
+    return;
+  }
+
+  // Deactivate previous row if active
+  if (currentActiveRow) {
+    currentActiveRow.classList.remove('active');
+    updatePlayStateUI(currentActiveRow, false);
+    resetRowProgress(currentActiveRow);
+  }
+
+  // Activate new track
+  currentTrackIndex = index;
+  currentActiveRow = rowEl;
+  rowEl.classList.add('active');
+
+  audioL.src = track.src;
+  audioL.play();
+  updatePlayStateUI(rowEl, true);
+}
+
+// Update Play/Pause UI across track row and main control bar
+function updatePlayStateUI(rowEl, isPlaying) {
+  const icon = rowEl.querySelector('.play-icon');
+  if (isPlaying) {
+    icon.innerHTML = '&#10074;&#10074;';
+    mainPlayIcon.innerHTML = '&#10074;&#10074;';
+  } else {
+    icon.innerHTML = '&#9654;';
+    mainPlayIcon.innerHTML = '&#9654;';
+  }
+}
+
+// Reset Progress UI
+function resetRowProgress(rowEl) {
+  const progressBar = rowEl.querySelector('.progress-bar');
+  const timeCurrent = rowEl.querySelector('.time-current');
+  const timeRemaining = rowEl.querySelector('.time-remaining');
+  progressBar.style.width = '0%';
+  timeCurrent.textContent = '0:00';
+  timeRemaining.textContent = '-0:00';
+}
+
+// Global Audio Progress Event Listeners
+audioL.addEventListener('timeupdate', () => {
+  if (!currentActiveRow || isNaN(audioL.duration)) return;
+
+  const current = audioL.currentTime;
+  const total = audioL.duration;
+  const remaining = total - current;
+  const percentage = (current / total) * 100;
+
+  const progressBar = currentActiveRow.querySelector('.progress-bar');
+  const timeCurrent = currentActiveRow.querySelector('.time-current');
+  const timeRemaining = currentActiveRow.querySelector('.time-remaining');
+
+  progressBar.style.width = `${percentage}%`;
+  timeCurrent.textContent = formatTime(current);
+  timeRemaining.textContent = formatTime(remaining, true);
+});
+
+// Automatic next track progression on end
+audioL.addEventListener('ended', () => {
+  if (currentTrackIndex !== null && typeof music !== 'undefined') {
+    const nextIndex = currentTrackIndex + 1;
+    const trackList = music[0].tracklist;
+    
+    if (nextIndex < trackList.length) {
+      const nextRow = tracklistEl.children[nextIndex];
+      togglePlayTrack(trackList[nextIndex], nextIndex, nextRow);
+    } else {
+      if (currentActiveRow) {
+        updatePlayStateUI(currentActiveRow, false);
+        resetRowProgress(currentActiveRow);
+      }
+      currentTrackIndex = null;
+      currentActiveRow = null;
+      mainPlayIcon.innerHTML = '&#9654;';
+    }
+  }
+});
+
+// Main Play/Pause Button Controls
+mainPlayBtn.addEventListener('click', () => {
+  if (typeof music === 'undefined' || music.length === 0) return;
+
+  const trackList = music[0].tracklist;
+  if (currentTrackIndex === null) {
+    togglePlayTrack(trackList[0], 0, tracklistEl.children[0]);
+  } else {
+    if (audioL.paused) {
+      audioL.play();
+      updatePlayStateUI(currentActiveRow, true);
+    } else {
+      audioL.pause();
+      updatePlayStateUI(currentActiveRow, false);
+    }
+  }
+});
+
+// Previous Track Button Control
+prevBtn.addEventListener('click', () => {
+  if (typeof music === 'undefined' || music.length === 0) return;
+  const trackList = music[0].tracklist;
+  
+  let targetIndex = currentTrackIndex !== null ? currentTrackIndex - 1 : 0;
+  if (targetIndex < 0) targetIndex = trackList.length - 1;
+
+  const targetRow = tracklistEl.children[targetIndex];
+  togglePlayTrack(trackList[targetIndex], targetIndex, targetRow);
+});
+
+// Next Track Button Control
+nextBtn.addEventListener('click', () => {
+  if (typeof music === 'undefined' || music.length === 0) return;
+  const trackList = music[0].tracklist;
+  
+  let targetIndex = currentTrackIndex !== null ? currentTrackIndex + 1 : 0;
+  if (targetIndex >= trackList.length) targetIndex = 0;
+
+  const targetRow = tracklistEl.children[targetIndex];
+  togglePlayTrack(trackList[targetIndex], targetIndex, targetRow);
+});
+
+// Initialize App
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof music !== 'undefined' && music.length > 0) {
+    renderAlbum(music[0]);
+  }
+});

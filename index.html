@@ -1,11 +1,40 @@
-<html>
-  <head>
-    <!-- Crucial for responsive design on mobile screens -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-    <title>Blake Cooper: Music</title>
-    <link rel="stylesheet" href="css/styles.css">
-  </head>
-  <body>
-    Coming soon...
-  </body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>[BETA] Blake Cooper: Music</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <main id="container">
+    <section id="album">
+      <div id="album-header">
+        <img id="album-cover" src="assets/images/1.png" alt="Album Cover" class="album-cover" />
+        <h1 id="album-title"></h1>
+        <p id="album-year"></p>
+        
+        <!-- Album Controls Bar -->
+        <div id="album-controls" class="album-controls">
+          <button id="prev-btn" class="control-btn" aria-label="Previous Track">&#8249;&#8249;</button>
+          <button id="main-play-btn" class="control-btn play-pause-btn" aria-label="Play/Pause">
+            <span id="main-play-icon">&#9654;</span>
+          </button>
+          <button id="next-btn" class="control-btn" aria-label="Next Track">&#8250;&#8250;</button>
+        </div>
+      </div>
+
+      <div id="tracklist-container">
+        <ul id="tracklist" class="tracklist"></ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- Global Audio Controller -->
+  <audio id="audio"></audio>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
 </html>
